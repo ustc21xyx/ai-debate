@@ -4,35 +4,44 @@ import { useEffect, useRef, useCallback } from 'react'
 import { useStore } from '@/store'
 import type { DebateMessage, ChatCompletionMessage } from '@/types'
 
-function TypingIndicator() {
+function TypingIndicator({ side }: { side: 'left' | 'right' }) {
+  const isLeft = side === 'left'
   return (
-    <div className="flex items-center gap-1 px-4 py-2">
-      <div className="typing-dot w-2 h-2 bg-gray-400 rounded-full" />
-      <div className="typing-dot w-2 h-2 bg-gray-400 rounded-full" />
-      <div className="typing-dot w-2 h-2 bg-gray-400 rounded-full" />
+    <div className={`flex items-center gap-1.5 px-4 py-3 ${isLeft ? 'text-[var(--left-primary)]' : 'text-[var(--right-primary)]'}`}>
+      <div className="typing-dot w-2 h-2 rounded-full bg-current" />
+      <div className="typing-dot w-2 h-2 rounded-full bg-current" />
+      <div className="typing-dot w-2 h-2 rounded-full bg-current" />
     </div>
   )
 }
 
-function MessageBubble({ message, modelName }: { message: DebateMessage; modelName: string }) {
+function MessageBubble({ message, modelName, index }: { message: DebateMessage; modelName: string; index: number }) {
   const isLeft = message.side === 'left'
 
   return (
-    <div className={`debate-message flex ${isLeft ? 'justify-start' : 'justify-end'} mb-4`}>
-      <div
-        className={`max-w-[80%] rounded-lg p-4 ${
-          isLeft
-            ? 'bg-blue-900/50 border border-blue-700'
-            : 'bg-red-900/50 border border-red-700'
-        }`}
-      >
-        <div className="flex items-center gap-2 mb-2">
-          <span className={`text-sm font-semibold ${isLeft ? 'text-blue-400' : 'text-red-400'}`}>
-            {modelName}
-          </span>
-          <span className="text-xs text-gray-500">第 {message.round} 轮</span>
+    <div
+      className={`flex ${isLeft ? 'justify-start' : 'justify-end'} mb-6 ${isLeft ? 'animate-slide-left' : 'animate-slide-right'}`}
+      style={{ animationDelay: `${index * 0.1}s` }}
+    >
+      <div className={`max-w-[85%] ${isLeft ? 'message-left' : 'message-right'} p-5`}>
+        <div className={`flex items-center gap-3 mb-3 ${isLeft ? '' : 'justify-end'}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+            isLeft ? 'bg-[var(--left-primary)]/20 text-[var(--left-primary)]' : 'bg-[var(--right-primary)]/20 text-[var(--right-primary)]'
+          }`}>
+            {isLeft ? 'L' : 'R'}
+          </div>
+          <div className={isLeft ? '' : 'text-right'}>
+            <span className={`text-sm font-semibold ${isLeft ? 'text-[var(--left-primary)]' : 'text-[var(--right-primary)]'}`}>
+              {modelName}
+            </span>
+            <span className="text-xs text-[var(--text-secondary)] ml-2">
+              Round {message.round}
+            </span>
+          </div>
         </div>
-        <div className="text-gray-200 whitespace-pre-wrap">{message.content}</div>
+        <div className="text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">
+          {message.content}
+        </div>
       </div>
     </div>
   )
@@ -56,14 +65,12 @@ export function DebateArena() {
   const containerRef = useRef<HTMLDivElement>(null)
   const isGenerating = useRef(false)
 
-  // 滚动到底部
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight
     }
   }, [messages])
 
-  // 获取端点和模型信息
   const getEndpointInfo = useCallback((endpointId: string) => {
     return endpoints.find((e) => e.id === endpointId)
   }, [endpoints])
@@ -74,7 +81,6 @@ export function DebateArena() {
     return model?.name || modelId
   }, [models])
 
-  // 构建对话历史
   const buildMessages = useCallback((side: 'left' | 'right'): ChatCompletionMessage[] => {
     if (!debateConfig) return []
 
@@ -97,20 +103,17 @@ export function DebateArena() {
       { role: 'system', content: systemPrompt },
     ]
 
-    // 添加历史消息
     messages.forEach((msg) => {
       const role = msg.side === side ? 'assistant' : 'user'
       chatMessages.push({ role, content: msg.content })
     })
 
-    // 如果是第一轮的第一个发言，添加开场提示
     if (messages.length === 0 && side === 'left') {
       chatMessages.push({
         role: 'user',
         content: `请就"${debateConfig.topic}"这个辩题，以${config.position}的立场发表你的开场陈述。`,
       })
     } else if (messages.length > 0) {
-      // 提示回应对方
       chatMessages.push({
         role: 'user',
         content: '请针对对方的论点进行回应和反驳，同时继续阐述你的立场。',
@@ -120,7 +123,6 @@ export function DebateArena() {
     return chatMessages
   }, [debateConfig, messages])
 
-  // 生成回复
   const generateResponse = useCallback(async () => {
     if (!debateConfig || isGenerating.current) return
 
@@ -169,7 +171,6 @@ export function DebateArena() {
 
       addMessage(message)
 
-      // 切换到下一方或下一轮
       if (side === 'left') {
         setCurrentSide('right')
       } else {
@@ -189,7 +190,6 @@ export function DebateArena() {
     }
   }, [debateConfig, currentSide, currentRound, getEndpointInfo, buildMessages, addMessage, setCurrentSide, setCurrentRound, setDebateStatus])
 
-  // 自动继续辩论
   useEffect(() => {
     if (debateStatus === 'debating' && !isGenerating.current) {
       const timer = setTimeout(() => {
@@ -199,96 +199,107 @@ export function DebateArena() {
     }
   }, [debateStatus, currentSide, currentRound, generateResponse])
 
-  const handlePause = () => {
-    setDebateStatus('paused')
-  }
+  const handlePause = () => setDebateStatus('paused')
+  const handleResume = () => setDebateStatus('debating')
+  const handleReset = () => setDebateStatus('idle')
 
-  const handleResume = () => {
-    setDebateStatus('debating')
-  }
-
-  const handleReset = () => {
-    setDebateStatus('idle')
-  }
-
-  if (!debateConfig) {
-    return null
-  }
+  if (!debateConfig) return null
 
   const leftModelName = getModelName(debateConfig.left.endpointId, debateConfig.left.modelId)
   const rightModelName = getModelName(debateConfig.right.endpointId, debateConfig.right.modelId)
 
   return (
-    <div className="bg-gray-800 rounded-lg overflow-hidden">
-      {/* 头部 */}
-      <div className="bg-gray-900 p-4 border-b border-gray-700">
+    <div className="arena-card overflow-hidden animate-fade-up">
+      {/* Header */}
+      <div className="relative bg-gradient-to-b from-[var(--bg-card)] to-transparent p-6 border-b border-[rgba(212,168,83,0.1)]">
+        {/* Decorative lines */}
+        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-[var(--left-primary)] via-[var(--accent-gold)] to-[var(--right-primary)]" />
+
         <div className="text-center">
-          <h2 className="text-xl font-bold text-white mb-2">{debateConfig.topic}</h2>
-          <div className="flex justify-center items-center gap-4 text-sm">
-            <span className="text-blue-400">
-              {debateConfig.left.position}: {leftModelName}
-            </span>
-            <span className="text-gray-500">VS</span>
-            <span className="text-red-400">
-              {debateConfig.right.position}: {rightModelName}
+          <div className="round-badge inline-block mb-4">
+            <span className="text-[var(--accent-gold)] text-sm">
+              ROUND {currentRound} / {debateConfig.rounds}
             </span>
           </div>
-          <div className="mt-2 text-sm text-gray-400">
-            第 {currentRound} / {debateConfig.rounds} 轮
-            {debateStatus === 'debating' && ` - ${currentSide === 'left' ? debateConfig.left.position : debateConfig.right.position}发言中`}
-            {debateStatus === 'finished' && ' - 辩论结束'}
-            {debateStatus === 'paused' && ' - 已暂停'}
+
+          <h2 className="font-display text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-6 tracking-wide">
+            {debateConfig.topic}
+          </h2>
+
+          {/* Debaters info */}
+          <div className="flex items-center justify-center gap-4 md:gap-8">
+            <div className="text-right flex-1">
+              <div className="text-[var(--left-primary)] font-semibold">{debateConfig.left.position}</div>
+              <div className="text-sm text-[var(--text-secondary)] truncate">{leftModelName}</div>
+            </div>
+
+            <div className="vs-badge text-2xl md:text-3xl px-4 animate-pulse-glow">VS</div>
+
+            <div className="text-left flex-1">
+              <div className="text-[var(--right-primary)] font-semibold">{debateConfig.right.position}</div>
+              <div className="text-sm text-[var(--text-secondary)] truncate">{rightModelName}</div>
+            </div>
+          </div>
+
+          {/* Status */}
+          <div className="mt-4 text-sm text-[var(--text-secondary)]">
+            {debateStatus === 'debating' && (
+              <span className="flex items-center justify-center gap-2">
+                <span className={`w-2 h-2 rounded-full animate-pulse ${currentSide === 'left' ? 'bg-[var(--left-primary)]' : 'bg-[var(--right-primary)]'}`} />
+                {currentSide === 'left' ? debateConfig.left.position : debateConfig.right.position} 正在发言...
+              </span>
+            )}
+            {debateStatus === 'finished' && <span className="text-[var(--accent-gold)]">辩论已结束</span>}
+            {debateStatus === 'paused' && <span className="text-yellow-500">已暂停</span>}
           </div>
         </div>
       </div>
 
-      {/* 消息区域 */}
-      <div ref={containerRef} className="h-[500px] overflow-y-auto p-4">
-        {messages.map((msg) => (
+      {/* Messages */}
+      <div ref={containerRef} className="h-[500px] overflow-y-auto p-6 bg-[var(--bg-secondary)]/30">
+        {messages.length === 0 && debateStatus === 'debating' && (
+          <div className="flex justify-center items-center h-full">
+            <div className="text-center">
+              <div className="text-[var(--text-secondary)] mb-2">辩论即将开始</div>
+              <div className="flex justify-center">
+                <TypingIndicator side="left" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {messages.map((msg, index) => (
           <MessageBubble
             key={msg.id}
             message={msg}
             modelName={msg.side === 'left' ? leftModelName : rightModelName}
+            index={index}
           />
         ))}
-        {debateStatus === 'debating' && (
+
+        {debateStatus === 'debating' && messages.length > 0 && (
           <div className={`flex ${currentSide === 'left' ? 'justify-start' : 'justify-end'}`}>
-            <div
-              className={`rounded-lg ${
-                currentSide === 'left'
-                  ? 'bg-blue-900/30 border border-blue-700'
-                  : 'bg-red-900/30 border border-red-700'
-              }`}
-            >
-              <TypingIndicator />
+            <div className={`${currentSide === 'left' ? 'message-left' : 'message-right'} rounded-2xl`}>
+              <TypingIndicator side={currentSide} />
             </div>
           </div>
         )}
       </div>
 
-      {/* 控制按钮 */}
-      <div className="p-4 border-t border-gray-700 flex justify-center gap-4">
+      {/* Controls */}
+      <div className="p-4 border-t border-[rgba(212,168,83,0.1)] bg-[var(--bg-card)] flex justify-center gap-4">
         {debateStatus === 'debating' && (
-          <button
-            onClick={handlePause}
-            className="px-6 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors"
-          >
+          <button onClick={handlePause} className="btn-arena btn-arena-outline">
             暂停
           </button>
         )}
         {debateStatus === 'paused' && (
-          <button
-            onClick={handleResume}
-            className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-          >
+          <button onClick={handleResume} className="btn-arena btn-arena-gold">
             继续
           </button>
         )}
         {(debateStatus === 'paused' || debateStatus === 'finished') && (
-          <button
-            onClick={handleReset}
-            className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
-          >
+          <button onClick={handleReset} className="btn-arena btn-arena-outline">
             重新配置
           </button>
         )}

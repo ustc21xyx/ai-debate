@@ -55,29 +55,41 @@ export function DebateSetup() {
   }
 
   return (
-    <div className="bg-gray-800 rounded-lg p-6">
-      <h2 className="text-xl font-bold text-white mb-4">辩论配置</h2>
+    <div className="arena-card arena-card-glow p-6 relative overflow-hidden">
+      {/* Corner decorations */}
+      <div className="corner-decoration bottom-left" />
+      <div className="corner-decoration bottom-right" />
+
+      <div className="mb-6">
+        <h2 className="font-display text-xl font-semibold text-[var(--accent-gold)] tracking-wide">
+          DEBATE CONFIG
+        </h2>
+        <p className="text-[var(--text-secondary)] text-sm mt-1">设置辩论主题与参赛选手</p>
+      </div>
 
       {endpoints.length === 0 ? (
-        <p className="text-yellow-400">请先添加并配置至少一个 API 端点</p>
+        <div className="text-center py-12">
+          <div className="text-[var(--accent-gold)] mb-2">请先添加 API 端点</div>
+          <div className="text-sm text-[var(--text-secondary)]">在上方配置至少一个 API 端点后即可开始辩论</div>
+        </div>
       ) : (
-        <div className="space-y-6">
-          {/* 辩题 */}
+        <div className="space-y-8">
+          {/* Topic Section */}
           <div>
-            <label className="block text-sm text-gray-300 mb-2">辩论主题</label>
+            <label className="block text-sm text-[var(--text-secondary)] mb-3 tracking-wide uppercase">辩论主题</label>
             <input
               type="text"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
-              placeholder="输入辩论主题..."
-              className="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+              placeholder="输入一个引人深思的辩题..."
+              className="arena-input w-full text-lg"
             />
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               {SAMPLE_TOPICS.map((t) => (
                 <button
                   key={t}
                   onClick={() => setTopic(t)}
-                  className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors"
+                  className="topic-chip"
                 >
                   {t}
                 </button>
@@ -85,44 +97,54 @@ export function DebateSetup() {
             </div>
           </div>
 
-          {/* 轮数 */}
+          {/* Rounds */}
           <div>
-            <label className="block text-sm text-gray-300 mb-2">辩论轮数</label>
-            <select
-              value={rounds}
-              onChange={(e) => setRounds(Number(e.target.value))}
-              className="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-            >
+            <label className="block text-sm text-[var(--text-secondary)] mb-3 tracking-wide uppercase">辩论轮数</label>
+            <div className="flex gap-2">
               {[1, 2, 3, 4, 5].map((n) => (
-                <option key={n} value={n}>{n} 轮</option>
+                <button
+                  key={n}
+                  onClick={() => setRounds(n)}
+                  className={`w-12 h-12 rounded-lg font-display font-semibold transition-all ${
+                    rounds === n
+                      ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)]'
+                      : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-[rgba(212,168,83,0.2)] hover:border-[var(--accent-gold)]'
+                  }`}
+                >
+                  {n}
+                </button>
               ))}
-            </select>
+            </div>
           </div>
 
-          {/* 双方配置 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* 左方 (正方) */}
-            <div className="p-4 bg-blue-900/30 rounded-lg border border-blue-700">
-              <h3 className="text-lg font-semibold text-blue-400 mb-3">左方</h3>
-              <div className="space-y-3">
+          {/* Debaters */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left Debater */}
+            <div className="debater-left rounded-xl p-5 relative">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[var(--left-primary)] to-transparent rounded-t-xl" />
+              <h3 className="font-display text-lg font-semibold text-[var(--left-primary)] mb-4 flex items-center gap-2">
+                <span className="w-2 h-2 bg-[var(--left-primary)] rounded-full animate-pulse" />
+                左方选手
+              </h3>
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">立场</label>
+                  <label className="block text-sm text-[var(--text-secondary)] mb-2">立场</label>
                   <input
                     type="text"
                     value={leftPosition}
                     onChange={(e) => setLeftPosition(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    className="arena-input w-full"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">API 端点</label>
+                  <label className="block text-sm text-[var(--text-secondary)] mb-2">API 端点</label>
                   <select
                     value={leftEndpoint}
                     onChange={(e) => {
                       setLeftEndpoint(e.target.value)
                       setLeftModel('')
                     }}
-                    className="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    className="arena-select w-full"
                   >
                     <option value="">选择端点...</option>
                     {endpoints.map((e) => (
@@ -131,12 +153,12 @@ export function DebateSetup() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">模型</label>
+                  <label className="block text-sm text-[var(--text-secondary)] mb-2">模型</label>
                   <select
                     value={leftModel}
                     onChange={(e) => setLeftModel(e.target.value)}
                     disabled={!leftEndpoint || leftModels.length === 0}
-                    className="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none disabled:opacity-50"
+                    className="arena-select w-full disabled:opacity-50"
                   >
                     <option value="">
                       {!leftEndpoint
@@ -153,28 +175,37 @@ export function DebateSetup() {
               </div>
             </div>
 
-            {/* 右方 (反方) */}
-            <div className="p-4 bg-red-900/30 rounded-lg border border-red-700">
-              <h3 className="text-lg font-semibold text-red-400 mb-3">右方</h3>
-              <div className="space-y-3">
+            {/* VS Badge (center on desktop) */}
+            <div className="hidden lg:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
+              <div className="vs-badge text-3xl animate-float">VS</div>
+            </div>
+
+            {/* Right Debater */}
+            <div className="debater-right rounded-xl p-5 relative">
+              <div className="absolute top-0 right-0 w-full h-1 bg-gradient-to-l from-[var(--right-primary)] to-transparent rounded-t-xl" />
+              <h3 className="font-display text-lg font-semibold text-[var(--right-primary)] mb-4 flex items-center justify-end gap-2">
+                右方选手
+                <span className="w-2 h-2 bg-[var(--right-primary)] rounded-full animate-pulse" />
+              </h3>
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">立场</label>
+                  <label className="block text-sm text-[var(--text-secondary)] mb-2 text-right">立场</label>
                   <input
                     type="text"
                     value={rightPosition}
                     onChange={(e) => setRightPosition(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    className="arena-input w-full text-right"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">API 端点</label>
+                  <label className="block text-sm text-[var(--text-secondary)] mb-2 text-right">API 端点</label>
                   <select
                     value={rightEndpoint}
                     onChange={(e) => {
                       setRightEndpoint(e.target.value)
                       setRightModel('')
                     }}
-                    className="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    className="arena-select w-full"
                   >
                     <option value="">选择端点...</option>
                     {endpoints.map((e) => (
@@ -183,12 +214,12 @@ export function DebateSetup() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">模型</label>
+                  <label className="block text-sm text-[var(--text-secondary)] mb-2 text-right">模型</label>
                   <select
                     value={rightModel}
                     onChange={(e) => setRightModel(e.target.value)}
                     disabled={!rightEndpoint || rightModels.length === 0}
-                    className="w-full px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none disabled:opacity-50"
+                    className="arena-select w-full disabled:opacity-50"
                   >
                     <option value="">
                       {!rightEndpoint
@@ -206,14 +237,16 @@ export function DebateSetup() {
             </div>
           </div>
 
-          {/* 开始按钮 */}
-          <button
-            onClick={handleStart}
-            disabled={!canStart}
-            className="w-full py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors"
-          >
-            开始辩论
-          </button>
+          {/* Start Button */}
+          <div className="pt-4">
+            <button
+              onClick={handleStart}
+              disabled={!canStart}
+              className="btn-arena btn-arena-gold w-full py-4 text-lg disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none"
+            >
+              开始辩论
+            </button>
+          </div>
         </div>
       )}
     </div>

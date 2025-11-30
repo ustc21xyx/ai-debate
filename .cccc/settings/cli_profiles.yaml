@@ -63,29 +63,29 @@ roles:
     cwd: .
     inbound_suffix:
       from_user: ' ultrathink'
-      from_peer: ' Please review and advance our current work with first principles and higher-order thinking toward our
-        global goal; If nothing critical to add other than an pure ACK, stay silent
-        and do not reply. ultrathink'
+      from_peer: ' Please review and advance our current work with first principles
+        and higher-order thinking toward our global goal; If nothing critical to add
+        other than an pure ACK, stay silent and do not reply. ultrathink'
       from_system: ' ultrathink'
     nudge_suffix: ' To send: OVERWRITE (not append) .cccc/mailbox/peerA/to_peer.md
-      or to_user.md. If inbox empty or idle: do ONE high-value item
-      - (A) strategic review (drift/priority/ideas), (B) tactical review or rework
-      (REV/Pivot), or (C) truly valuable work. Send only with new evidence, risk/pivot,
-      or decisional ask; otherwise stay silent. ultrathink'
+      or to_user.md. If inbox empty or idle: do ONE high-value item - (A) strategic
+      review (drift/priority/ideas), (B) tactical review or rework (REV/Pivot), or
+      (C) truly valuable work. Send only with new evidence, risk/pivot, or decisional
+      ask; otherwise stay silent. ultrathink'
   peerB:
     actor: codex
     cwd: .
     inbound_suffix:
       from_user: ' ultrathink'
-      from_peer: ' Please review and advance our current work with first principles and higher-order thinking toward our
-        global goal; If nothing critical to add other than an pure ACK,
-        stay silent and do not reply. ultrathink'
+      from_peer: ' Please review and advance our current work with first principles
+        and higher-order thinking toward our global goal; If nothing critical to add
+        other than an pure ACK, stay silent and do not reply. ultrathink'
       from_system: ' ultrathink'
     nudge_suffix: ' To send: OVERWRITE (not append) .cccc/mailbox/peerB/to_peer.md
-      or to_user.md. If inbox empty or idle: do ONE high-value item
-      - (A) strategic review (drift/priority/ideas), (B) tactical review or rework
-      (REV/Pivot), or (C) truly valuable work. Send only with new evidence, risk/pivot,
-      or decisional ask; otherwise stay silent. ultrathink'
+      or to_user.md. If inbox empty or idle: do ONE high-value item - (A) strategic
+      review (drift/priority/ideas), (B) tactical review or rework (REV/Pivot), or
+      (C) truly valuable work. Send only with new evidence, risk/pivot, or decisional
+      ask; otherwise stay silent. ultrathink'
   aux:
     actor: gemini
     cwd: .
@@ -93,3 +93,4 @@ roles:
 roles_wizard:
   enabled: true
   timeout_seconds: 10
+im_mode: tmux
