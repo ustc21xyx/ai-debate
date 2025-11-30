@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useCallback } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { useStore } from '@/store'
 import type { DebateMessage, ChatCompletionMessage, JudgeVerdict } from '@/types'
 
@@ -43,8 +44,8 @@ function MessageBubble({ message, modelName, index }: { message: DebateMessage; 
             </span>
           </div>
         </div>
-        <div className="text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">
-          {message.content}
+        <div className="text-[var(--text-primary)] leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-2 prose-strong:text-[var(--text-primary)] prose-em:text-[var(--text-secondary)]">
+          <ReactMarkdown>{message.content}</ReactMarkdown>
         </div>
       </div>
     </div>
@@ -91,7 +92,9 @@ function VerdictDisplay({ verdict, leftPosition, rightPosition }: {
           <span className="w-1.5 h-1.5 bg-[var(--accent-gold)] rounded-full" />
           辩论要点总结
         </h4>
-        <p className="text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">{verdict.summary}</p>
+        <div className="text-[var(--text-primary)] leading-relaxed prose prose-invert prose-sm max-w-none">
+          <ReactMarkdown>{verdict.summary}</ReactMarkdown>
+        </div>
       </div>
 
       {/* Comments */}
@@ -101,14 +104,18 @@ function VerdictDisplay({ verdict, leftPosition, rightPosition }: {
             <span className="w-1.5 h-1.5 bg-[var(--left-primary)] rounded-full" />
             {leftPosition}方点评
           </h4>
-          <p className="text-[var(--text-primary)] leading-relaxed text-sm whitespace-pre-wrap">{verdict.leftComment}</p>
+          <div className="text-[var(--text-primary)] leading-relaxed text-sm prose prose-invert prose-sm max-w-none">
+            <ReactMarkdown>{verdict.leftComment}</ReactMarkdown>
+          </div>
         </div>
         <div className="p-5 rounded-xl debater-right">
           <h4 className="font-display text-[var(--right-primary)] mb-3 flex items-center gap-2 justify-end">
             {rightPosition}方点评
             <span className="w-1.5 h-1.5 bg-[var(--right-primary)] rounded-full" />
           </h4>
-          <p className="text-[var(--text-primary)] leading-relaxed text-sm whitespace-pre-wrap">{verdict.rightComment}</p>
+          <div className="text-[var(--text-primary)] leading-relaxed text-sm prose prose-invert prose-sm max-w-none">
+            <ReactMarkdown>{verdict.rightComment}</ReactMarkdown>
+          </div>
         </div>
       </div>
 
@@ -120,7 +127,9 @@ function VerdictDisplay({ verdict, leftPosition, rightPosition }: {
           </svg>
           裁决理由
         </h4>
-        <p className="text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">{verdict.reason}</p>
+        <div className="text-[var(--text-primary)] leading-relaxed prose prose-invert prose-sm max-w-none">
+          <ReactMarkdown>{verdict.reason}</ReactMarkdown>
+        </div>
       </div>
     </div>
   )
