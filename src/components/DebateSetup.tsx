@@ -13,7 +13,7 @@ const SAMPLE_TOPICS = [
 ]
 
 export function DebateSetup() {
-  const { endpoints, models, setDebateConfig, setDebateStatus, clearMessages, setCurrentRound, setCurrentSide } = useStore()
+  const { endpoints, models, setDebateConfig, setDebateStatus, clearMessages, setCurrentRound, setCurrentSide, setVerdict } = useStore()
 
   const [topic, setTopic] = useState('')
   const [rounds, setRounds] = useState(3)
@@ -23,11 +23,14 @@ export function DebateSetup() {
   const [rightEndpoint, setRightEndpoint] = useState('')
   const [rightModel, setRightModel] = useState('')
   const [rightPosition, setRightPosition] = useState('反方')
+  const [judgeEndpoint, setJudgeEndpoint] = useState('')
+  const [judgeModel, setJudgeModel] = useState('')
 
   const leftModels = leftEndpoint ? models[leftEndpoint] || [] : []
   const rightModels = rightEndpoint ? models[rightEndpoint] || [] : []
+  const judgeModels = judgeEndpoint ? models[judgeEndpoint] || [] : []
 
-  const canStart = topic && leftEndpoint && leftModel && rightEndpoint && rightModel
+  const canStart = topic && leftEndpoint && leftModel && rightEndpoint && rightModel && judgeEndpoint && judgeModel
 
   const handleStart = () => {
     if (!canStart) return
@@ -45,9 +48,14 @@ export function DebateSetup() {
         modelId: rightModel,
         position: rightPosition,
       },
+      judge: {
+        endpointId: judgeEndpoint,
+        modelId: judgeModel,
+      },
     }
 
     clearMessages()
+    setVerdict(null)
     setCurrentRound(1)
     setCurrentSide('left')
     setDebateConfig(config)
@@ -118,7 +126,7 @@ export function DebateSetup() {
           </div>
 
           {/* Debaters */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative">
             {/* Left Debater */}
             <div className="debater-left rounded-xl p-5 relative">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[var(--left-primary)] to-transparent rounded-t-xl" />
@@ -175,11 +183,6 @@ export function DebateSetup() {
               </div>
             </div>
 
-            {/* VS Badge (center on desktop) */}
-            <div className="hidden lg:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
-              <div className="vs-badge text-3xl animate-float">VS</div>
-            </div>
-
             {/* Right Debater */}
             <div className="debater-right rounded-xl p-5 relative">
               <div className="absolute top-0 right-0 w-full h-1 bg-gradient-to-l from-[var(--right-primary)] to-transparent rounded-t-xl" />
@@ -234,6 +237,61 @@ export function DebateSetup() {
                   </select>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Judge */}
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-[var(--left-primary)]/10 via-[var(--accent-gold)]/20 to-[var(--right-primary)]/10 rounded-xl" />
+            <div className="relative rounded-xl p-5 border border-[var(--accent-gold)]/30">
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1 bg-gradient-to-r from-transparent via-[var(--accent-gold)] to-transparent rounded-t-xl" />
+              <h3 className="font-display text-lg font-semibold text-[var(--accent-gold)] mb-4 flex items-center justify-center gap-2">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.349L11 6.477V16h2a1 1 0 110 2H7a1 1 0 110-2h2V6.477L6.237 7.582l1.715 5.349a1 1 0 01-.285 1.05A3.989 3.989 0 015 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.617a1 1 0 01.894-1.788l1.599.799L9 4.323V3a1 1 0 011-1z" />
+                </svg>
+                裁判
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-[var(--text-secondary)] mb-2">API 端点</label>
+                  <select
+                    value={judgeEndpoint}
+                    onChange={(e) => {
+                      setJudgeEndpoint(e.target.value)
+                      setJudgeModel('')
+                    }}
+                    className="arena-select w-full"
+                  >
+                    <option value="">选择端点...</option>
+                    {endpoints.map((e) => (
+                      <option key={e.id} value={e.id}>{e.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-[var(--text-secondary)] mb-2">模型</label>
+                  <select
+                    value={judgeModel}
+                    onChange={(e) => setJudgeModel(e.target.value)}
+                    disabled={!judgeEndpoint || judgeModels.length === 0}
+                    className="arena-select w-full disabled:opacity-50"
+                  >
+                    <option value="">
+                      {!judgeEndpoint
+                        ? '先选择端点'
+                        : judgeModels.length === 0
+                        ? '请先获取模型列表'
+                        : '选择模型...'}
+                    </option>
+                    {judgeModels.map((m) => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs text-[var(--text-secondary)] text-center mt-3">
+                裁判将在辩论结束后对双方表现进行点评并宣布获胜方
+              </p>
             </div>
           </div>
 

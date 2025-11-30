@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { ApiEndpoint, Model, DebateConfig, DebateMessage, DebateStatus } from '@/types'
+import type { ApiEndpoint, Model, DebateConfig, DebateMessage, DebateStatus, JudgeVerdict } from '@/types'
 
 interface AppState {
   // API 端点管理
@@ -33,6 +33,10 @@ interface AppState {
   // 当前说话方
   currentSide: 'left' | 'right'
   setCurrentSide: (side: 'left' | 'right') => void
+
+  // 裁判裁决
+  verdict: JudgeVerdict | null
+  setVerdict: (verdict: JudgeVerdict | null) => void
 }
 
 export const useStore = create<AppState>()(
@@ -77,6 +81,10 @@ export const useStore = create<AppState>()(
       // 说话方
       currentSide: 'left',
       setCurrentSide: (side) => set({ currentSide: side }),
+
+      // 裁判裁决
+      verdict: null,
+      setVerdict: (verdict) => set({ verdict }),
     }),
     {
       name: 'ai-debate-storage',

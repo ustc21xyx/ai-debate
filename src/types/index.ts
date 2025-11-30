@@ -21,12 +21,19 @@ export interface DebaterConfig {
   position: string // 辩论立场
 }
 
+// 裁判配置
+export interface JudgeConfig {
+  endpointId: string
+  modelId: string
+}
+
 // 辩论配置
 export interface DebateConfig {
   topic: string
   rounds: number
   left: DebaterConfig
   right: DebaterConfig
+  judge: JudgeConfig
 }
 
 // 辩论消息
@@ -40,7 +47,16 @@ export interface DebateMessage {
 }
 
 // 辩论状态
-export type DebateStatus = 'idle' | 'configuring' | 'debating' | 'paused' | 'finished'
+export type DebateStatus = 'idle' | 'configuring' | 'debating' | 'paused' | 'judging' | 'finished'
+
+// 裁判裁决
+export interface JudgeVerdict {
+  winner: 'left' | 'right' | 'draw'
+  summary: string        // 辩论要点总结
+  leftComment: string    // 对正方的点评
+  rightComment: string   // 对反方的点评
+  reason: string         // 裁决理由
+}
 
 // API 响应类型
 export interface ChatCompletionMessage {
