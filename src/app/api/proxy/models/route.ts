@@ -11,20 +11,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 构建请求 URL
-    const url = type === 'anthropic'
-      ? `${baseUrl}/v1/models`
-      : `${baseUrl}/v1/models`
-
-    // 构建请求头
+    let url: string
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     }
 
-    if (type === 'anthropic') {
+    if (type === 'gemini') {
+      // Gemini API format
+      url = `${baseUrl}/v1beta/models?key=${apiKey}`
+    } else if (type === 'anthropic') {
+      url = `${baseUrl}/v1/models`
       headers['x-api-key'] = apiKey
       headers['anthropic-version'] = '2023-06-01'
     } else {
+      // OpenAI compatible
+      url = `${baseUrl}/v1/models`
       headers['Authorization'] = `Bearer ${apiKey}`
     }
 
@@ -42,6 +43,17 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await response.json()
+
+    // Normalize response format
+    if (type === 'gemini') {
+      // Gemini returns { models: [...] }
+      const models = (data.models || []).map((m: { name: string; displayName?: string }) => ({
+        id: m.name.replace('models/', ''),
+        display_name: m.displayName || m.name.replace('models/', ''),
+      }))
+      return NextResponse.json({ data: models })
+    }
+
     return NextResponse.json(data)
   } catch (error) {
     console.error('Proxy error:', error)

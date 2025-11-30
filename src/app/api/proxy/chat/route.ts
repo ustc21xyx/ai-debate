@@ -11,7 +11,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 构建请求头
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     }
@@ -19,12 +18,36 @@ export async function POST(request: NextRequest) {
     let url: string
     let body: Record<string, unknown>
 
-    if (type === 'anthropic') {
+    if (type === 'gemini') {
+      // Gemini API format
+      url = `${baseUrl}/v1beta/models/${model}:generateContent?key=${apiKey}`
+
+      // Convert messages to Gemini format
+      const systemMessage = messages.find((m: { role: string }) => m.role === 'system')
+      const otherMessages = messages.filter((m: { role: string }) => m.role !== 'system')
+
+      const contents = otherMessages.map((m: { role: string; content: string }) => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }],
+      }))
+
+      body = {
+        contents,
+        generationConfig: {
+          maxOutputTokens: 4096,
+        },
+        ...(systemMessage && {
+          systemInstruction: {
+            parts: [{ text: systemMessage.content }],
+          },
+        }),
+      }
+    } else if (type === 'anthropic') {
       url = `${baseUrl}/v1/messages`
       headers['x-api-key'] = apiKey
       headers['anthropic-version'] = '2023-06-01'
 
-      // 转换消息格式为 Anthropic 格式
+      // Convert messages to Anthropic format
       const systemMessage = messages.find((m: { role: string }) => m.role === 'system')
       const otherMessages = messages.filter((m: { role: string }) => m.role !== 'system')
 
@@ -38,7 +61,7 @@ export async function POST(request: NextRequest) {
         ...(systemMessage && { system: systemMessage.content }),
       }
     } else {
-      // OpenAI 兼容格式
+      // OpenAI compatible format
       url = `${baseUrl}/v1/chat/completions`
       headers['Authorization'] = `Bearer ${apiKey}`
 
@@ -50,8 +73,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (stream) {
-      // 流式响应
+    if (stream && type !== 'gemini') {
+      // Streaming response (not supported for Gemini in this implementation)
       const response = await fetch(url, {
         method: 'POST',
         headers,
@@ -66,7 +89,6 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // 返回流式响应
       return new NextResponse(response.body, {
         headers: {
           'Content-Type': 'text/event-stream',
@@ -75,7 +97,7 @@ export async function POST(request: NextRequest) {
         },
       })
     } else {
-      // 非流式响应
+      // Non-streaming response
       const response = await fetch(url, {
         method: 'POST',
         headers,
@@ -92,9 +114,11 @@ export async function POST(request: NextRequest) {
 
       const data = await response.json()
 
-      // 统一响应格式
+      // Normalize response format
       let content: string
-      if (type === 'anthropic') {
+      if (type === 'gemini') {
+        content = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+      } else if (type === 'anthropic') {
         content = data.content?.[0]?.text || ''
       } else {
         content = data.choices?.[0]?.message?.content || ''

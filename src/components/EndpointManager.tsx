@@ -12,7 +12,7 @@ export function EndpointManager() {
     name: '',
     baseUrl: '',
     apiKey: '',
-    type: 'openai' as 'openai' | 'anthropic',
+    type: 'openai' as 'openai' | 'anthropic' | 'gemini',
   })
 
   const handleAdd = () => {
@@ -29,6 +29,14 @@ export function EndpointManager() {
     addEndpoint(endpoint)
     setForm({ name: '', baseUrl: '', apiKey: '', type: 'openai' })
     setIsAdding(false)
+  }
+
+  const getTypeBadge = (type: string) => {
+    switch (type) {
+      case 'anthropic': return 'Anthropic'
+      case 'gemini': return 'Gemini'
+      default: return 'OpenAI'
+    }
   }
 
   const fetchModels = async (endpoint: ApiEndpoint) => {
@@ -103,11 +111,12 @@ export function EndpointManager() {
               <label className="block text-sm text-[var(--text-secondary)] mb-2 tracking-wide">类型</label>
               <select
                 value={form.type}
-                onChange={(e) => setForm({ ...form, type: e.target.value as 'openai' | 'anthropic' })}
+                onChange={(e) => setForm({ ...form, type: e.target.value as 'openai' | 'anthropic' | 'gemini' })}
                 className="arena-select w-full"
               >
                 <option value="openai">OpenAI 兼容</option>
                 <option value="anthropic">Anthropic</option>
+                <option value="gemini">Gemini</option>
               </select>
             </div>
           </div>
@@ -158,7 +167,7 @@ export function EndpointManager() {
                 <div className="flex items-center gap-3">
                   <span className="font-semibold text-[var(--text-primary)]">{endpoint.name}</span>
                   <span className="text-xs px-2 py-0.5 rounded-full bg-[rgba(212,168,83,0.15)] text-[var(--accent-gold)] border border-[rgba(212,168,83,0.2)]">
-                    {endpoint.type === 'anthropic' ? 'Anthropic' : 'OpenAI'}
+                    {getTypeBadge(endpoint.type)}
                   </span>
                 </div>
                 <p className="text-sm text-[var(--text-secondary)] mt-1 font-mono">{endpoint.baseUrl}</p>

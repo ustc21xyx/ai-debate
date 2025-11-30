@@ -4,7 +4,7 @@ export interface ApiEndpoint {
   name: string
   baseUrl: string
   apiKey: string
-  type: 'openai' | 'anthropic'
+  type: 'openai' | 'anthropic' | 'gemini'
 }
 
 // 模型信息
