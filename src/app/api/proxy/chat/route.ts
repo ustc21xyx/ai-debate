@@ -20,7 +20,8 @@ export async function POST(request: NextRequest) {
 
     if (type === 'gemini') {
       // Gemini API format
-      url = `${baseUrl}/v1beta/models/${model}:generateContent?key=${apiKey}`
+      const endpoint = stream ? 'streamGenerateContent' : 'generateContent'
+      url = `${baseUrl}/v1beta/models/${model}:${endpoint}?key=${apiKey}${stream ? '&alt=sse' : ''}`
 
       // Convert messages to Gemini format
       const systemMessage = messages.find((m: { role: string }) => m.role === 'system')
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest) {
       body = {
         model,
         max_tokens: 4096,
+        stream,
         messages: otherMessages.map((m: { role: string; content: string }) => ({
           role: m.role === 'assistant' ? 'assistant' : 'user',
           content: m.content,
@@ -73,12 +75,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (stream && type !== 'gemini') {
-      // Streaming response (not supported for Gemini in this implementation)
+    if (stream) {
       const response = await fetch(url, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ ...body, stream: true }),
+        body: JSON.stringify(body),
       })
 
       if (!response.ok) {
@@ -89,7 +90,56 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      return new NextResponse(response.body, {
+      // Create a TransformStream to process the SSE data
+      const encoder = new TextEncoder()
+      const decoder = new TextDecoder()
+
+      const transformStream = new TransformStream({
+        async transform(chunk, controller) {
+          const text = decoder.decode(chunk)
+          const lines = text.split('\n')
+
+          for (const line of lines) {
+            if (!line.trim() || line.startsWith(':')) continue
+
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6)
+              if (data === '[DONE]') {
+                controller.enqueue(encoder.encode('data: [DONE]\n\n'))
+                continue
+              }
+
+              try {
+                const json = JSON.parse(data)
+                let content = ''
+
+                if (type === 'gemini') {
+                  // Gemini streaming format
+                  content = json.candidates?.[0]?.content?.parts?.[0]?.text || ''
+                } else if (type === 'anthropic') {
+                  // Anthropic streaming format
+                  if (json.type === 'content_block_delta') {
+                    content = json.delta?.text || ''
+                  }
+                } else {
+                  // OpenAI streaming format
+                  content = json.choices?.[0]?.delta?.content || ''
+                }
+
+                if (content) {
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`))
+                }
+              } catch {
+                // Skip invalid JSON
+              }
+            }
+          }
+        },
+      })
+
+      const readable = response.body?.pipeThrough(transformStream)
+
+      return new NextResponse(readable, {
         headers: {
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',

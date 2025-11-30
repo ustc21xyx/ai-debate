@@ -4,8 +4,25 @@ import { useStore } from '@/store'
 import { EndpointManager, DebateSetup, DebateArena } from '@/components'
 
 export default function Home() {
-  const { debateStatus } = useStore()
+  const { debateStatus, _hasHydrated } = useStore()
   const showDebate = debateStatus !== 'idle'
+
+  // 等待 hydration 完成
+  if (!_hasHydrated) {
+    return (
+      <main className="min-h-screen relative flex items-center justify-center">
+        <div className="arena-bg" />
+        <div className="text-center animate-pulse">
+          <div className="font-display text-2xl text-[var(--accent-gold)] mb-2">
+            AI DEBATE ARENA
+          </div>
+          <div className="text-[var(--text-secondary)] text-sm">
+            加载中...
+          </div>
+        </div>
+      </main>
+    )
+  }
 
   return (
     <main className="min-h-screen relative">

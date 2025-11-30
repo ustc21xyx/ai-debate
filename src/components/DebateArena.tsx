@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useStore } from '@/store'
-import type { DebateMessage, ChatCompletionMessage, JudgeVerdict } from '@/types'
+import type { DebateMessage, ChatCompletionMessage, JudgeVerdict, CombinedVerdict } from '@/types'
 
 function TypingIndicator({ side }: { side: 'left' | 'right' | 'judge' }) {
   const colorClass = side === 'left'
@@ -52,84 +52,162 @@ function MessageBubble({ message, modelName, index }: { message: DebateMessage; 
   )
 }
 
-function VerdictDisplay({ verdict, leftPosition, rightPosition }: {
-  verdict: JudgeVerdict
+function StreamingBubble({ side, modelName, content, round }: {
+  side: 'left' | 'right'
+  modelName: string
+  content: string
+  round: number
+}) {
+  const isLeft = side === 'left'
+
+  return (
+    <div className={`flex ${isLeft ? 'justify-start' : 'justify-end'} mb-6`}>
+      <div className={`max-w-[85%] ${isLeft ? 'message-left' : 'message-right'} p-5`}>
+        <div className={`flex items-center gap-3 mb-3 ${isLeft ? '' : 'justify-end'}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+            isLeft ? 'bg-[var(--left-primary)]/20 text-[var(--left-primary)]' : 'bg-[var(--right-primary)]/20 text-[var(--right-primary)]'
+          }`}>
+            {isLeft ? 'L' : 'R'}
+          </div>
+          <div className={isLeft ? '' : 'text-right'}>
+            <span className={`text-sm font-semibold ${isLeft ? 'text-[var(--left-primary)]' : 'text-[var(--right-primary)]'}`}>
+              {modelName}
+            </span>
+            <span className="text-xs text-[var(--text-secondary)] ml-2">
+              Round {round}
+            </span>
+          </div>
+        </div>
+        <div className="text-[var(--text-primary)] leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-2 prose-strong:text-[var(--text-primary)] prose-em:text-[var(--text-secondary)]">
+          <ReactMarkdown>{content}</ReactMarkdown>
+          <span className="inline-block w-2 h-4 bg-current animate-pulse ml-0.5" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function VerdictDisplay({ verdict, leftPosition, rightPosition, getModelName }: {
+  verdict: CombinedVerdict
   leftPosition: string
   rightPosition: string
+  getModelName: (modelId: string) => string
 }) {
-  const winnerText = verdict.winner === 'left'
+  const winnerText = verdict.finalWinner === 'left'
     ? leftPosition
-    : verdict.winner === 'right'
+    : verdict.finalWinner === 'right'
     ? rightPosition
     : '平局'
 
-  const winnerColor = verdict.winner === 'left'
+  const winnerColor = verdict.finalWinner === 'left'
     ? 'text-[var(--left-primary)]'
-    : verdict.winner === 'right'
+    : verdict.finalWinner === 'right'
     ? 'text-[var(--right-primary)]'
     : 'text-[var(--accent-gold)]'
 
+  const getVoteIcon = (winner: 'left' | 'right' | 'draw') => {
+    if (winner === 'left') return <span className="text-[var(--left-primary)]">◀</span>
+    if (winner === 'right') return <span className="text-[var(--right-primary)]">▶</span>
+    return <span className="text-[var(--accent-gold)]">◆</span>
+  }
+
   return (
     <div className="animate-fade-up">
-      {/* Winner announcement */}
+      {/* Final Winner announcement */}
       <div className="text-center mb-8 py-6 bg-gradient-to-r from-[var(--left-primary)]/10 via-[var(--accent-gold)]/20 to-[var(--right-primary)]/10 rounded-xl border border-[var(--accent-gold)]/30">
-        <div className="text-[var(--text-secondary)] text-sm mb-2 tracking-wide uppercase">裁判裁决</div>
-        <div className="font-display text-3xl font-bold mb-2">
+        <div className="text-[var(--text-secondary)] text-sm mb-2 tracking-wide uppercase">最终裁决</div>
+        <div className="font-display text-3xl font-bold mb-3">
           <span className={winnerColor}>{winnerText}</span>
           <span className="text-[var(--text-primary)]"> 获胜</span>
         </div>
+
+        {/* Vote count */}
+        <div className="flex justify-center gap-6 text-sm mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-[var(--left-primary)]">◀</span>
+            <span className="text-[var(--text-secondary)]">{leftPosition}:</span>
+            <span className="font-bold text-[var(--left-primary)]">{verdict.voteCount.left}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[var(--accent-gold)]">◆</span>
+            <span className="text-[var(--text-secondary)]">平局:</span>
+            <span className="font-bold text-[var(--accent-gold)]">{verdict.voteCount.draw}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[var(--right-primary)]">▶</span>
+            <span className="text-[var(--text-secondary)]">{rightPosition}:</span>
+            <span className="font-bold text-[var(--right-primary)]">{verdict.voteCount.right}</span>
+          </div>
+        </div>
+
         <div className="text-[var(--accent-gold)] text-sm">
           <svg className="w-5 h-5 inline-block mr-1" fill="currentColor" viewBox="0 0 20 20">
             <path d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.349L11 6.477V16h2a1 1 0 110 2H7a1 1 0 110-2h2V6.477L6.237 7.582l1.715 5.349a1 1 0 01-.285 1.05A3.989 3.989 0 015 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.617a1 1 0 01.894-1.788l1.599.799L9 4.323V3a1 1 0 011-1z" />
           </svg>
-          OFFICIAL VERDICT
+          OFFICIAL VERDICT (3 JUDGES)
         </div>
       </div>
 
-      {/* Summary */}
-      <div className="mb-6 p-5 bg-[var(--bg-secondary)] rounded-xl border border-[rgba(212,168,83,0.15)]">
-        <h4 className="font-display text-[var(--accent-gold)] mb-3 flex items-center gap-2">
-          <span className="w-1.5 h-1.5 bg-[var(--accent-gold)] rounded-full" />
-          辩论要点总结
-        </h4>
-        <div className="text-[var(--text-primary)] leading-relaxed prose prose-invert prose-sm max-w-none">
-          <ReactMarkdown>{verdict.summary}</ReactMarkdown>
-        </div>
-      </div>
+      {/* Individual Judge Verdicts */}
+      <div className="space-y-6">
+        {verdict.verdicts.map((v, index) => (
+          <div key={index} className="p-5 bg-[var(--bg-secondary)] rounded-xl border border-[rgba(212,168,83,0.15)]">
+            {/* Judge Header */}
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-[rgba(212,168,83,0.1)]">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[var(--accent-gold)]/20 text-[var(--accent-gold)] text-sm font-bold">
+                  {index + 1}
+                </span>
+                <div>
+                  <div className="text-sm font-semibold text-[var(--text-primary)]">裁判 {index + 1}</div>
+                  <div className="text-xs text-[var(--text-secondary)]">{getModelName(v.modelId)}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {getVoteIcon(v.winner)}
+                <span className={`text-sm font-semibold ${
+                  v.winner === 'left' ? 'text-[var(--left-primary)]' :
+                  v.winner === 'right' ? 'text-[var(--right-primary)]' :
+                  'text-[var(--accent-gold)]'
+                }`}>
+                  {v.winner === 'left' ? leftPosition : v.winner === 'right' ? rightPosition : '平局'}
+                </span>
+              </div>
+            </div>
 
-      {/* Comments */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="p-5 rounded-xl debater-left">
-          <h4 className="font-display text-[var(--left-primary)] mb-3 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 bg-[var(--left-primary)] rounded-full" />
-            {leftPosition}方点评
-          </h4>
-          <div className="text-[var(--text-primary)] leading-relaxed text-sm prose prose-invert prose-sm max-w-none">
-            <ReactMarkdown>{verdict.leftComment}</ReactMarkdown>
+            {/* Summary */}
+            <div className="mb-4">
+              <h5 className="text-xs text-[var(--text-secondary)] uppercase tracking-wide mb-2">要点总结</h5>
+              <div className="text-[var(--text-primary)] text-sm leading-relaxed prose prose-invert prose-sm max-w-none">
+                <ReactMarkdown>{v.summary}</ReactMarkdown>
+              </div>
+            </div>
+
+            {/* Comments */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+              <div className="p-3 rounded-lg bg-[var(--left-primary)]/5 border border-[var(--left-primary)]/20">
+                <h5 className="text-xs text-[var(--left-primary)] mb-1">{leftPosition}方点评</h5>
+                <div className="text-[var(--text-primary)] text-xs leading-relaxed">
+                  <ReactMarkdown>{v.leftComment}</ReactMarkdown>
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-[var(--right-primary)]/5 border border-[var(--right-primary)]/20">
+                <h5 className="text-xs text-[var(--right-primary)] mb-1 text-right">{rightPosition}方点评</h5>
+                <div className="text-[var(--text-primary)] text-xs leading-relaxed">
+                  <ReactMarkdown>{v.rightComment}</ReactMarkdown>
+                </div>
+              </div>
+            </div>
+
+            {/* Reason */}
+            <div className="p-3 rounded-lg bg-[var(--accent-gold)]/5 border border-[var(--accent-gold)]/20">
+              <h5 className="text-xs text-[var(--accent-gold)] mb-1">裁决理由</h5>
+              <div className="text-[var(--text-primary)] text-xs leading-relaxed">
+                <ReactMarkdown>{v.reason}</ReactMarkdown>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="p-5 rounded-xl debater-right">
-          <h4 className="font-display text-[var(--right-primary)] mb-3 flex items-center gap-2 justify-end">
-            {rightPosition}方点评
-            <span className="w-1.5 h-1.5 bg-[var(--right-primary)] rounded-full" />
-          </h4>
-          <div className="text-[var(--text-primary)] leading-relaxed text-sm prose prose-invert prose-sm max-w-none">
-            <ReactMarkdown>{verdict.rightComment}</ReactMarkdown>
-          </div>
-        </div>
-      </div>
-
-      {/* Reason */}
-      <div className="p-5 bg-gradient-to-b from-[var(--accent-gold)]/10 to-transparent rounded-xl border border-[var(--accent-gold)]/20">
-        <h4 className="font-display text-[var(--accent-gold)] mb-3 flex items-center gap-2">
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-          </svg>
-          裁决理由
-        </h4>
-        <div className="text-[var(--text-primary)] leading-relaxed prose prose-invert prose-sm max-w-none">
-          <ReactMarkdown>{verdict.reason}</ReactMarkdown>
-        </div>
+        ))}
       </div>
     </div>
   )
@@ -154,12 +232,14 @@ export function DebateArena() {
 
   const containerRef = useRef<HTMLDivElement>(null)
   const isGenerating = useRef(false)
+  const [streamingContent, setStreamingContent] = useState<string>('')
+  const [isStreaming, setIsStreaming] = useState(false)
 
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight
     }
-  }, [messages, verdict])
+  }, [messages, verdict, streamingContent])
 
   const getEndpointInfo = useCallback((endpointId: string) => {
     return endpoints.find((e) => e.id === endpointId)
@@ -213,19 +293,14 @@ export function DebateArena() {
     return chatMessages
   }, [debateConfig, messages])
 
+  const [judgingProgress, setJudgingProgress] = useState(0)
+
   const generateJudgeVerdict = useCallback(async () => {
     if (!debateConfig || isGenerating.current) return
 
     isGenerating.current = true
     setDebateStatus('judging')
-
-    const endpoint = getEndpointInfo(debateConfig.judge.endpointId)
-    if (!endpoint) {
-      console.error('Judge endpoint not found')
-      isGenerating.current = false
-      setDebateStatus('finished')
-      return
-    }
+    setJudgingProgress(0)
 
     // Build debate transcript
     const transcript = messages.map((msg) => {
@@ -260,48 +335,101 @@ ${debateConfig.left.position}方 vs ${debateConfig.right.position}方
       { role: 'user', content: `以下是辩论全文记录：\n\n${transcript}\n\n请作出你的裁决。` },
     ]
 
+    const verdicts: JudgeVerdict[] = []
+
     try {
-      const response = await fetch('/api/proxy/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          baseUrl: endpoint.baseUrl,
-          apiKey: endpoint.apiKey,
-          type: endpoint.type,
-          model: debateConfig.judge.modelId,
-          messages: chatMessages,
-        }),
+      // Call all 3 judges sequentially
+      for (let i = 0; i < debateConfig.judges.length; i++) {
+        const judgeConfig = debateConfig.judges[i]
+        const endpoint = getEndpointInfo(judgeConfig.endpointId)
+
+        if (!endpoint) {
+          console.error(`Judge ${i + 1} endpoint not found`)
+          continue
+        }
+
+        setJudgingProgress(i + 1)
+
+        const response = await fetch('/api/proxy/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            baseUrl: endpoint.baseUrl,
+            apiKey: endpoint.apiKey,
+            type: endpoint.type,
+            model: judgeConfig.modelId,
+            messages: chatMessages,
+          }),
+        })
+
+        if (!response.ok) {
+          const error = await response.json()
+          console.error(`Judge ${i + 1} error:`, error)
+          // Add a fallback verdict
+          verdicts.push({
+            judgeIndex: i,
+            modelId: judgeConfig.modelId,
+            winner: 'draw',
+            summary: '裁判评判失败',
+            leftComment: '',
+            rightComment: '',
+            reason: error.error || '未知错误',
+          })
+          continue
+        }
+
+        const data = await response.json()
+
+        // Parse JSON from response
+        let verdictData: Omit<JudgeVerdict, 'judgeIndex' | 'modelId'>
+        try {
+          const jsonMatch = data.content.match(/\{[\s\S]*\}/)
+          if (jsonMatch) {
+            verdictData = JSON.parse(jsonMatch[0])
+          } else {
+            throw new Error('No JSON found in response')
+          }
+        } catch {
+          verdictData = {
+            winner: 'draw',
+            summary: '无法解析裁判的评判结果',
+            leftComment: data.content,
+            rightComment: '',
+            reason: '评判格式异常',
+          }
+        }
+
+        verdicts.push({
+          judgeIndex: i,
+          modelId: judgeConfig.modelId,
+          ...verdictData,
+        })
+      }
+
+      // Calculate vote count and final winner
+      const voteCount = { left: 0, right: 0, draw: 0 }
+      verdicts.forEach((v) => {
+        if (v.winner === 'left') voteCount.left++
+        else if (v.winner === 'right') voteCount.right++
+        else voteCount.draw++
       })
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to get judge verdict')
+      let finalWinner: 'left' | 'right' | 'draw'
+      if (voteCount.left > voteCount.right && voteCount.left > voteCount.draw) {
+        finalWinner = 'left'
+      } else if (voteCount.right > voteCount.left && voteCount.right > voteCount.draw) {
+        finalWinner = 'right'
+      } else {
+        finalWinner = 'draw'
       }
 
-      const data = await response.json()
-
-      // Parse JSON from response
-      let verdictData: JudgeVerdict
-      try {
-        // Try to extract JSON from the response
-        const jsonMatch = data.content.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          verdictData = JSON.parse(jsonMatch[0])
-        } else {
-          throw new Error('No JSON found in response')
-        }
-      } catch {
-        // Fallback if JSON parsing fails
-        verdictData = {
-          winner: 'draw',
-          summary: '无法解析裁判的评判结果',
-          leftComment: data.content,
-          rightComment: '',
-          reason: '评判格式异常',
-        }
+      const combinedVerdict: CombinedVerdict = {
+        verdicts,
+        finalWinner,
+        voteCount,
       }
 
-      setVerdict(verdictData)
+      setVerdict(combinedVerdict)
       setDebateStatus('finished')
     } catch (error) {
       console.error('Judge error:', error)
@@ -309,6 +437,7 @@ ${debateConfig.left.position}方 vs ${debateConfig.right.position}方
       setDebateStatus('finished')
     } finally {
       isGenerating.current = false
+      setJudgingProgress(0)
     }
   }, [debateConfig, messages, getEndpointInfo, setDebateStatus, setVerdict])
 
@@ -316,6 +445,8 @@ ${debateConfig.left.position}方 vs ${debateConfig.right.position}方
     if (!debateConfig || isGenerating.current) return
 
     isGenerating.current = true
+    setStreamingContent('')
+    setIsStreaming(true)
 
     const side = currentSide
     const config = side === 'left' ? debateConfig.left : debateConfig.right
@@ -324,6 +455,7 @@ ${debateConfig.left.position}方 vs ${debateConfig.right.position}方
     if (!endpoint) {
       console.error('Endpoint not found')
       isGenerating.current = false
+      setIsStreaming(false)
       return
     }
 
@@ -339,21 +471,55 @@ ${debateConfig.left.position}方 vs ${debateConfig.right.position}方
           type: endpoint.type,
           model: config.modelId,
           messages: chatMessages,
+          stream: true,
         }),
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to generate response')
+        const errorText = await response.text()
+        throw new Error(errorText || 'Failed to generate response')
       }
 
-      const data = await response.json()
+      // Handle streaming response
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+      let fullContent = ''
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          const chunk = decoder.decode(value)
+          const lines = chunk.split('\n')
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6)
+              if (data === '[DONE]') continue
+
+              try {
+                const json = JSON.parse(data)
+                if (json.content) {
+                  fullContent += json.content
+                  setStreamingContent(fullContent)
+                }
+              } catch {
+                // Skip invalid JSON
+              }
+            }
+          }
+        }
+      }
+
+      setIsStreaming(false)
+      setStreamingContent('')
 
       const message: DebateMessage = {
         id: crypto.randomUUID(),
         side,
         round: currentRound,
-        content: data.content,
+        content: fullContent,
         model: config.modelId,
         timestamp: Date.now(),
       }
@@ -377,6 +543,8 @@ ${debateConfig.left.position}方 vs ${debateConfig.right.position}方
       console.error('Generation error:', error)
       alert(`生成失败: ${error instanceof Error ? error.message : '未知错误'}`)
       setDebateStatus('paused')
+      setIsStreaming(false)
+      setStreamingContent('')
     } finally {
       isGenerating.current = false
     }
@@ -402,7 +570,16 @@ ${debateConfig.left.position}方 vs ${debateConfig.right.position}方
 
   const leftModelName = getModelName(debateConfig.left.endpointId, debateConfig.left.modelId)
   const rightModelName = getModelName(debateConfig.right.endpointId, debateConfig.right.modelId)
-  const judgeModelName = getModelName(debateConfig.judge.endpointId, debateConfig.judge.modelId)
+  const judgeModelNames = debateConfig.judges.map((j) => getModelName(j.endpointId, j.modelId))
+
+  // Helper to get model name by modelId only (for verdict display)
+  const getModelNameById = useCallback((modelId: string) => {
+    for (const endpointId in models) {
+      const found = models[endpointId]?.find((m) => m.id === modelId)
+      if (found) return found.name || modelId
+    }
+    return modelId
+  }, [models])
 
   return (
     <div className="arena-card overflow-hidden animate-fade-up">
@@ -437,9 +614,15 @@ ${debateConfig.left.position}方 vs ${debateConfig.right.position}方
             </div>
           </div>
 
-          {/* Judge info */}
+          {/* Judges info */}
           <div className="mt-3 text-xs text-[var(--text-secondary)]">
-            裁判：<span className="text-[var(--accent-gold)]">{judgeModelName}</span>
+            裁判团：
+            {judgeModelNames.map((name, i) => (
+              <span key={i}>
+                {i > 0 && ' · '}
+                <span className="text-[var(--accent-gold)]">{name}</span>
+              </span>
+            ))}
           </div>
 
           {/* Status */}
@@ -453,7 +636,7 @@ ${debateConfig.left.position}方 vs ${debateConfig.right.position}方
             {debateStatus === 'judging' && (
               <span className="flex items-center justify-center gap-2">
                 <span className="w-2 h-2 rounded-full animate-pulse bg-[var(--accent-gold)]" />
-                裁判正在评判...
+                裁判 {judgingProgress || 1}/3 正在评判...
               </span>
             )}
             {debateStatus === 'finished' && <span className="text-[var(--accent-gold)]">辩论已结束</span>}
@@ -464,7 +647,7 @@ ${debateConfig.left.position}方 vs ${debateConfig.right.position}方
 
       {/* Messages & Verdict */}
       <div ref={containerRef} className="h-[500px] overflow-y-auto p-6 bg-[var(--bg-secondary)]/30">
-        {messages.length === 0 && debateStatus === 'debating' && (
+        {messages.length === 0 && debateStatus === 'debating' && !isStreaming && (
           <div className="flex justify-center items-center h-full">
             <div className="text-center">
               <div className="text-[var(--text-secondary)] mb-2">辩论即将开始</div>
@@ -473,6 +656,15 @@ ${debateConfig.left.position}方 vs ${debateConfig.right.position}方
               </div>
             </div>
           </div>
+        )}
+
+        {messages.length === 0 && debateStatus === 'debating' && isStreaming && streamingContent && (
+          <StreamingBubble
+            side="left"
+            modelName={leftModelName}
+            content={streamingContent}
+            round={1}
+          />
         )}
 
         {messages.map((msg, index) => (
@@ -484,7 +676,16 @@ ${debateConfig.left.position}方 vs ${debateConfig.right.position}方
           />
         ))}
 
-        {debateStatus === 'debating' && messages.length > 0 && (
+        {debateStatus === 'debating' && messages.length > 0 && isStreaming && streamingContent && (
+          <StreamingBubble
+            side={currentSide}
+            modelName={currentSide === 'left' ? leftModelName : rightModelName}
+            content={streamingContent}
+            round={currentRound}
+          />
+        )}
+
+        {debateStatus === 'debating' && messages.length > 0 && !isStreaming && (
           <div className={`flex ${currentSide === 'left' ? 'justify-start' : 'justify-end'}`}>
             <div className={`${currentSide === 'left' ? 'message-left' : 'message-right'} rounded-2xl`}>
               <TypingIndicator side={currentSide} />
@@ -500,7 +701,26 @@ ${debateConfig.left.position}方 vs ${debateConfig.right.position}方
                   <path d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.349L11 6.477V16h2a1 1 0 110 2H7a1 1 0 110-2h2V6.477L6.237 7.582l1.715 5.349a1 1 0 01-.285 1.05A3.989 3.989 0 015 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.617a1 1 0 01.894-1.788l1.599.799L9 4.323V3a1 1 0 011-1z" />
                 </svg>
               </div>
-              <div className="text-[var(--text-secondary)] mb-2">裁判正在审阅辩论记录</div>
+              <div className="text-[var(--text-secondary)] mb-2">裁判团正在审阅辩论记录</div>
+              <div className="flex justify-center gap-2 mb-3">
+                {[1, 2, 3].map((n) => (
+                  <div
+                    key={n}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
+                      n <= judgingProgress
+                        ? 'bg-[var(--accent-gold)] text-[var(--bg-primary)]'
+                        : n === judgingProgress + 1
+                        ? 'bg-[var(--accent-gold)]/30 text-[var(--accent-gold)] animate-pulse'
+                        : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'
+                    }`}
+                  >
+                    {n}
+                  </div>
+                ))}
+              </div>
+              <div className="text-xs text-[var(--text-secondary)]">
+                {judgingProgress > 0 ? `裁判 ${judgingProgress} 评判中...` : '准备中...'}
+              </div>
               <TypingIndicator side="judge" />
             </div>
           </div>
@@ -512,6 +732,7 @@ ${debateConfig.left.position}方 vs ${debateConfig.right.position}方
               verdict={verdict}
               leftPosition={debateConfig.left.position}
               rightPosition={debateConfig.right.position}
+              getModelName={getModelNameById}
             />
           </div>
         )}

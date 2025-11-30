@@ -1,8 +1,12 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { ApiEndpoint, Model, DebateConfig, DebateMessage, DebateStatus, JudgeVerdict } from '@/types'
+import type { ApiEndpoint, Model, DebateConfig, DebateMessage, DebateStatus, CombinedVerdict } from '@/types'
 
 interface AppState {
+  // Hydration 状态
+  _hasHydrated: boolean
+  setHasHydrated: (state: boolean) => void
+
   // API 端点管理
   endpoints: ApiEndpoint[]
   addEndpoint: (endpoint: ApiEndpoint) => void
@@ -35,13 +39,17 @@ interface AppState {
   setCurrentSide: (side: 'left' | 'right') => void
 
   // 裁判裁决
-  verdict: JudgeVerdict | null
-  setVerdict: (verdict: JudgeVerdict | null) => void
+  verdict: CombinedVerdict | null
+  setVerdict: (verdict: CombinedVerdict | null) => void
 }
 
 export const useStore = create<AppState>()(
   persist(
     (set) => ({
+      // Hydration
+      _hasHydrated: false,
+      setHasHydrated: (state) => set({ _hasHydrated: state }),
+
       // API 端点
       endpoints: [],
       addEndpoint: (endpoint) =>
@@ -92,6 +100,9 @@ export const useStore = create<AppState>()(
         endpoints: state.endpoints,
         models: state.models,
       }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true)
+      },
     }
   )
 )

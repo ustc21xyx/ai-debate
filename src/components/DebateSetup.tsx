@@ -23,14 +23,32 @@ export function DebateSetup() {
   const [rightEndpoint, setRightEndpoint] = useState('')
   const [rightModel, setRightModel] = useState('')
   const [rightPosition, setRightPosition] = useState('反方')
-  const [judgeEndpoint, setJudgeEndpoint] = useState('')
-  const [judgeModel, setJudgeModel] = useState('')
+  // 3个裁判
+  const [judgeEndpoints, setJudgeEndpoints] = useState(['', '', ''])
+  const [judgeModels, setJudgeModels] = useState(['', '', ''])
 
   const leftModels = leftEndpoint ? models[leftEndpoint] || [] : []
   const rightModels = rightEndpoint ? models[rightEndpoint] || [] : []
-  const judgeModels = judgeEndpoint ? models[judgeEndpoint] || [] : []
+  const getJudgeModels = (index: number) => judgeEndpoints[index] ? models[judgeEndpoints[index]] || [] : []
 
-  const canStart = topic && leftEndpoint && leftModel && rightEndpoint && rightModel && judgeEndpoint && judgeModel
+  const allJudgesConfigured = judgeEndpoints.every((e, i) => e && judgeModels[i])
+  const canStart = topic && leftEndpoint && leftModel && rightEndpoint && rightModel && allJudgesConfigured
+
+  const updateJudgeEndpoint = (index: number, value: string) => {
+    const newEndpoints = [...judgeEndpoints]
+    newEndpoints[index] = value
+    setJudgeEndpoints(newEndpoints)
+    // 清空对应的模型选择
+    const newModels = [...judgeModels]
+    newModels[index] = ''
+    setJudgeModels(newModels)
+  }
+
+  const updateJudgeModel = (index: number, value: string) => {
+    const newModels = [...judgeModels]
+    newModels[index] = value
+    setJudgeModels(newModels)
+  }
 
   const handleStart = () => {
     if (!canStart) return
@@ -48,10 +66,10 @@ export function DebateSetup() {
         modelId: rightModel,
         position: rightPosition,
       },
-      judge: {
-        endpointId: judgeEndpoint,
-        modelId: judgeModel,
-      },
+      judges: judgeEndpoints.map((endpointId, i) => ({
+        endpointId,
+        modelId: judgeModels[i],
+      })),
     }
 
     clearMessages()
@@ -240,7 +258,7 @@ export function DebateSetup() {
             </div>
           </div>
 
-          {/* Judge */}
+          {/* Judges Panel */}
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-r from-[var(--left-primary)]/10 via-[var(--accent-gold)]/20 to-[var(--right-primary)]/10 rounded-xl" />
             <div className="relative rounded-xl p-5 border border-[var(--accent-gold)]/30">
@@ -249,48 +267,62 @@ export function DebateSetup() {
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.349L11 6.477V16h2a1 1 0 110 2H7a1 1 0 110-2h2V6.477L6.237 7.582l1.715 5.349a1 1 0 01-.285 1.05A3.989 3.989 0 015 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.617a1 1 0 01.894-1.788l1.599.799L9 4.323V3a1 1 0 011-1z" />
                 </svg>
-                裁判
+                裁判团（3人）
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-[var(--text-secondary)] mb-2">API 端点</label>
-                  <select
-                    value={judgeEndpoint}
-                    onChange={(e) => {
-                      setJudgeEndpoint(e.target.value)
-                      setJudgeModel('')
-                    }}
-                    className="arena-select w-full"
-                  >
-                    <option value="">选择端点...</option>
-                    {endpoints.map((e) => (
-                      <option key={e.id} value={e.id}>{e.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm text-[var(--text-secondary)] mb-2">模型</label>
-                  <select
-                    value={judgeModel}
-                    onChange={(e) => setJudgeModel(e.target.value)}
-                    disabled={!judgeEndpoint || judgeModels.length === 0}
-                    className="arena-select w-full disabled:opacity-50"
-                  >
-                    <option value="">
-                      {!judgeEndpoint
-                        ? '先选择端点'
-                        : judgeModels.length === 0
-                        ? '请先获取模型列表'
-                        : '选择模型...'}
-                    </option>
-                    {judgeModels.map((m) => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
-                  </select>
-                </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[0, 1, 2].map((index) => {
+                  const judgeModelList = getJudgeModels(index)
+                  return (
+                    <div key={index} className="p-4 bg-[var(--bg-secondary)]/50 rounded-lg border border-[rgba(212,168,83,0.1)]">
+                      <div className="text-center mb-3">
+                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[var(--accent-gold)]/20 text-[var(--accent-gold)] text-sm font-bold">
+                          {index + 1}
+                        </span>
+                        <div className="text-xs text-[var(--text-secondary)] mt-1">裁判 {index + 1}</div>
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs text-[var(--text-secondary)] mb-1">端点</label>
+                          <select
+                            value={judgeEndpoints[index]}
+                            onChange={(e) => updateJudgeEndpoint(index, e.target.value)}
+                            className="arena-select w-full text-sm"
+                          >
+                            <option value="">选择...</option>
+                            {endpoints.map((e) => (
+                              <option key={e.id} value={e.id}>{e.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-[var(--text-secondary)] mb-1">模型</label>
+                          <select
+                            value={judgeModels[index]}
+                            onChange={(e) => updateJudgeModel(index, e.target.value)}
+                            disabled={!judgeEndpoints[index] || judgeModelList.length === 0}
+                            className="arena-select w-full text-sm disabled:opacity-50"
+                          >
+                            <option value="">
+                              {!judgeEndpoints[index]
+                                ? '先选择端点'
+                                : judgeModelList.length === 0
+                                ? '获取模型'
+                                : '选择...'}
+                            </option>
+                            {judgeModelList.map((m) => (
+                              <option key={m.id} value={m.id}>{m.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
-              <p className="text-xs text-[var(--text-secondary)] text-center mt-3">
-                裁判将在辩论结束后对双方表现进行点评并宣布获胜方
+
+              <p className="text-xs text-[var(--text-secondary)] text-center mt-4">
+                三位裁判将独立评判，最终结果由多数票决定
               </p>
             </div>
           </div>
