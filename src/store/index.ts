@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import type { ApiEndpoint, Model, DebateConfig, DebateMessage, DebateStatus, CombinedVerdict } from '@/types'
 
 interface AppState {
@@ -96,6 +96,18 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'ai-debate-storage',
+      storage: createJSONStorage(() => {
+        // 确保只在客户端使用 localStorage
+        if (typeof window !== 'undefined') {
+          return localStorage
+        }
+        // SSR 时返回空存储
+        return {
+          getItem: () => null,
+          setItem: () => {},
+          removeItem: () => {},
+        }
+      }),
       partialize: (state) => ({
         endpoints: state.endpoints,
         models: state.models,
@@ -106,3 +118,8 @@ export const useStore = create<AppState>()(
     }
   )
 )
+
+// 手动触发 hydration（用于确保客户端正确加载）
+if (typeof window !== 'undefined') {
+  useStore.persist.rehydrate()
+}
